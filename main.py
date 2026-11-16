@@ -35,18 +35,6 @@ class LinkParser(HTMLParser):
                 self.links.append(href)
 
 
-def load_env(path: Path) -> dict[str, str]:
-    """Read simple KEY=value lines from a .env file next to the script (no external deps)."""
-    env: dict[str, str] = {}
-    if path.exists():
-        for line in path.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, _, value = line.partition("=")
-                env[key.strip()] = value.strip().strip('"').strip("'")
-    return env
-
-
 def open_url(url: str, timeout: float, method: str = "GET"):
     return urlopen(
         Request(url, method=method, headers={"User-Agent": USER_AGENT}), timeout=timeout
@@ -259,33 +247,32 @@ def capture_download(mod: str, timeout: float, iface: str | None) -> tuple[str, 
 
 
 def main() -> int:
-    env = load_env(Path(__file__).resolve().parent / ".env")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--base",
-        default=env.get("BASE"),
+        default=None,
         help="Server sv_wwwBaseURL (default: http://<auto IP>:<port>)",
     )
     parser.add_argument(
         "--port",
         type=int,
-        default=int(env.get("PORT", 8081)),
+        default=8081,
         help="FastDL port, used with auto IP",
     )
     parser.add_argument(
         "--mod",
-        default=env.get("MOD"),
+        required=True,
         help="Mod path / fs_game, e.g. mods/ADN-Server-Zombies",
     )
     parser.add_argument(
         "--token",
-        default=env.get("TOKEN", ""),
+        default="",
         help="Per-session download token from the request path",
     )
     parser.add_argument(
         "--out",
         type=Path,
-        default=Path(env.get("OUT", Path.cwd())),
+        default=Path.cwd(),
         help="Folder to receive mods/<name>/",
     )
     parser.add_argument("--timeout", type=float, default=30)
@@ -310,10 +297,6 @@ def main() -> int:
         "files", nargs="*", help="File names to fetch (skips listing / defaults)"
     )
     args = parser.parse_args()
-
-    if not args.mod:
-        print("No mod set; pass --mod mods/<name> or set MOD in .env")
-        return 1
 
     captured_files: list[str] = []
     if args.capture:
@@ -360,7 +343,7 @@ def main() -> int:
     if 403 in statuses and not args.token.strip("/"):
         print(
             "Got HTTP 403 with no token set — this server gates downloads per session. "
-            "Re-run with --capture (or set TOKEN from a capture) to get a valid token."
+            "Re-run with --capture to get a valid token."
         )
     return 0 if ok == len(statuses) else 1
 
