@@ -8,9 +8,13 @@ MIT licensed. See [LICENSE](LICENSE).
 
 ## Quick start (tl;dr section)
 
-A few super straightforward examples for you to hit the ground running. These commands assume you don't have the full mod downloaded or just have a partial version of it.
+A few super straightforward examples for you to hit the ground running. These commands assume:
+1. you don't have the full mod downloaded or just have a partial version of it
+2. you have installed:
+  - Linux: `tcpdump`
+  - Windows: [Wireshark](https://www.wireshark.org/download.html)
 
-The commands will manually download the files; then it's about you moving the files to the correct location (ie. `/path/to/Plutonium/storage/t6/mods`).
+The commands will manually download the files; then it's about you moving the files to the correct location (ie. `/path/to/Plutonium/storage/t6/mods`). The examples are for Linux; for Windows users, open the terminal as Administrator and remove `sudo` from the commands.
 
 ### Dummy server example
 
