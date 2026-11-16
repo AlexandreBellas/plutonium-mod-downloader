@@ -6,34 +6,45 @@ MIT licensed. See [LICENSE](LICENSE).
 
 ## How it works
 
-The client downloads mods over plain HTTP from the server's `sv_wwwBaseURL`. This script hits that same URL. It finds the server's current IP from Plutonium's public server list, then fetches the mod files, showing live progress.
+The mod downloads over plain HTTP, but gated servers put a one-time token in the URL that the client never saves. Capture mode reads that token off the wire as you connect, then downloads the files itself.
 
 ## Setup
 
 ```bash
-cp .env.example .env   # then fill in MOD and TOKEN
+cp .env.example .env   # then set MOD
 ```
 
-## Usage
+## Usage — capture mode (recommended)
+
+Prerequisites:
+- Linux: `sudo` + `tcpdump`.
+- Windows: run the terminal as Administrator + install Wireshark (includes `tshark` and Npcap).
+
+1. Run it from your `storage/t6` folder:
 
 ```bash
-python main.py            # fetch default T6 mod files
-python main.py mod.ff     # fetch specific file(s)
+sudo python main.py --capture          # Windows: python main.py --capture (as Administrator)
 ```
 
-Files land in `<out>/mods/<name>/`. Run it from your `storage/t6` folder, or set `OUT`.
+2. Launch BO2 and connect to the server. **Capture fires only when you connect to a server, not when you open the game.**
+3. If the mod is already installed, delete one of its files first so the client re-downloads.
 
-## The token
-
-Mods behind a gated host need a per-session token: the `/rb.../` segment the client puts in the request path. It changes every time you join, so capture a fresh one each run.
-
-Join a server, then capture the request:
+It grabs the host, port, and token, then downloads the **whole mod** (via the server's directory listing). Pass filenames to fetch only a subset:
 
 ```bash
-sudo tcpdump -i any -n -l -A -s0 'tcp dst port 8081 and tcp[((tcp[12]&0xf0)>>2):4] = 0x47455420' | sed 's/[^[:print:]]//g'
+sudo python main.py --capture mod.ff           # just one file
 ```
 
-Copy the token from the `GET /<token>/mods/...` line into `TOKEN` in `.env`, or pass `--token`.
+## Usage — manual mode
+
+With a known `BASE`/`TOKEN`:
+
+```bash
+python main.py            # default T6 mod files
+python main.py mod.ff     # specific file(s)
+```
+
+Files land in `<out>/mods/<name>/`. Run from your `storage/t6` folder, or set `OUT`.
 
 ## Config
 
@@ -42,15 +53,18 @@ Set in `.env` or override with a flag. Flags win.
 | Key / flag | Default | Meaning |
 | --- | --- | --- |
 | `MOD` / `--mod` | — (required) | Mod path, e.g. `mods/ADN-Server-Zombies` |
-| `TOKEN` / `--token` | empty | Per-session download token |
-| `PORT` / `--port` | `8081` | FastDL port, used with auto-detected IP |
+| `--capture` | off | Sniff host/port/token/files from a live join (needs admin + tcpdump/tshark) |
+| `--capture-timeout` | `180` | Seconds to wait for the join while capturing |
+| `--iface` | auto | Capture interface (`any` on Linux; tshark's default on Windows) |
+| `TOKEN` / `--token` | empty | Per-session download token (capture fills this in) |
+| `PORT` / `--port` | `8081` | FastDL port, used with auto-detected IP (manual mode) |
 | `BASE` / `--base` | auto | Full `sv_wwwBaseURL`; skips IP auto-detection |
 | `OUT` / `--out` | current dir | Folder that receives `mods/<name>/` |
 | `--timeout` | `30` | Per-request timeout (s) |
 | `--retries` | `4` | Retries per file |
-| positional | — | Exact file names; skips listing and defaults |
+| positional | — | Exact file names to fetch (a subset); omit to download the whole mod |
 
-When no files are given, it reads the server's folder listing; if that's blocked, it falls back to `mod.ff`, `mod.iwd`, `mod.all.sabl`, `mod.all.sabs`, `mod.json`.
+With no filenames given, it downloads the whole mod from the server's directory listing. If listing is blocked, it falls back to the files seen during capture, else to `mod.ff`, `mod.iwd`, `mod.all.sabl`, `mod.all.sabs`, `mod.json`.
 
 ## Install the mod
 
@@ -59,6 +73,8 @@ Copy the downloaded `mods/<name>/` into `%LOCALAPPDATA%\Plutonium\storage\t6\mod
 ## Example (ADN zombies server)
 
 ```bash
-# .env: MOD=mods/ADN-Server-Zombies, TOKEN=<token from tcpdump>
-python main.py mod.ff
+# .env: MOD=mods/ADN-Server-Zombies
+cd /path/to/Plutonium/storage/t6
+sudo python main.py --capture
+# then launch BO2 and join any ADN server
 ```
